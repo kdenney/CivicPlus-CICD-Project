@@ -1,0 +1,49 @@
+@startuml CICD
+
+actor Developer
+participant CI_CD_Tool as "CI/CD Tool"
+participant Continuous_Integration as "CI"
+participant Kubernetes
+participant Infrastructure_As_Code as "CD, IaC"
+participant Application
+participant Monitoring
+participant Load_Balancer as "Load Balancer"
+
+Developer -> CI_CD_Tool: Push code changes
+CI_CD_Tool -> Continuous_Integration: Trigger CI pipeline
+Continuous_Integration -> CI_CD_Tool: Build and test code
+CI_CD_Tool -> CI_CD_Tool: Package and store artifacts
+CI_CD_Tool -> Kubernetes: Deploy to staging environment
+Kubernetes -> Infrastructure_As_Code: Provision resources
+Kubernetes -> Application: Deploy staging instance
+Kubernetes -> Monitoring: Monitor health
+Monitoring --> CI_CD_Tool: Health status
+CI_CD_Tool -> Developer: Staging deploy success
+
+alt Developer approves staging
+    CI_CD_Tool -> Kubernetes: Deploy to green
+    Kubernetes -> Infrastructure_As_Code: Provision resources
+    Kubernetes -> Application: Deploy green instance
+    Kubernetes -> Monitoring: Monitor health
+    Monitoring --> CI_CD_Tool: Health status
+    CI_CD_Tool -> Load_Balancer: Route a percentage of traffic to green
+    CI_CD_Tool -> Developer: Green partial deploy success
+else Developer rejects staging
+    CI_CD_Tool -> Developer: Staging rejection
+end
+
+note right of Developer: Manual testing\nand verification
+
+alt Developer approves green instance
+    CI_CD_Tool -> Load_Balancer: Route all traffic to green
+    CI_CD_Tool -> Developer: Green deployment success
+else Developer rejects green instance
+    CI_CD_Tool -> Load_Balancer: Route all traffic back to blue
+    CI_CD_Tool -> Kubernetes: Rollback green instance
+    Kubernetes -> Application: Rollback to previous version
+    Kubernetes -> Monitoring: Monitor health
+    Monitoring --> CI_CD_Tool: Health status
+    CI_CD_Tool -> Developer: Rollback success
+end
+
+@enduml
